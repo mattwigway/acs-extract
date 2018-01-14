@@ -28,6 +28,15 @@ testCases = [
         ('B25094_011_MOE', 'HD02_VD12'),
         ('B25094_018', 'HD01_VD19'),
         ('B25094_018_MOE', 'HD02_VD19'),
+    )),
+    # One that has the weird fractional line numbers, to make sure we're lining everything up right
+    ('B02019_*', 'tracts', 'test_data/ACS_16_5YR_B02019_with_ann.csv', (
+        ('B02019_001', 'HD01_VD01'),
+        ('B02019_001_MOE', 'HD02_VD01'),
+        ('B02019_002', 'HD01_VD03'),
+        ('B02019_002_MOE', 'HD02_VD03'),
+        ('B02019_011', 'HD01_VD14'),
+        ('B02019_011_MOE', 'HD02_VD14')
     ))
 ]
 

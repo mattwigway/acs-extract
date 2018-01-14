@@ -100,6 +100,13 @@ with open(args.index) as index:
             if line['Line Number'] == '':
                 continue # Universe Line
 
+            elif line['Line Number'].endswith('.5'):
+                # Who the heck ever heard of a line number ending in .5? I sure didn't. But evidently the Census bureau
+                # has decided to use this to represent headers which are not actually tabulated, to indicate where in
+                # sequence they should go. Smh.
+                baseTitle = line['Table Title'] + ' '
+                continue
+
             lineNumber = int(line['Line Number'])
             sequenceNumber = int(line['Sequence Number'])
 
