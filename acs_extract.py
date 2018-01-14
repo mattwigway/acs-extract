@@ -61,7 +61,7 @@ with open(join(args.path, 'g20165ca.txt'), 'rb') as g: # Because hey, we couldn'
         logrecno = line[13:20].decode('ascii')
         geoids[logrecno] = dict(geoid=geoid, type=typ)
 
-# Read the index
+# Read the index/lookup table
 with open(args.index) as index:
     rdr = DictReader(index)
 
@@ -116,13 +116,14 @@ with open(args.index) as index:
                 var = Variable(table=currentTableId, tableName=currentTableName, number=lineNumber, sequence=sequenceNumber, offset=offset, name=title)
                 variablesBySequence[sequenceNumber].append(var)
 
+# User feedback
 print('Reading the following variables: ')
 varsToRead = [i for seq in variablesBySequence.values() for i in seq]
 varsToRead.sort(key=lambda x: f'{x.table}_{x.number:03d})')
 for var in varsToRead:
     print(f'{var.table}_{var.number:03d}: {var.name}')
 
-
+# Write README
 if args.readme:
     with open(args.readme, 'w') as readme:
         print(f'README for {basename(args.output)}', file=readme)
@@ -152,6 +153,7 @@ rows = defaultdict(dict) # geoid to row values
 
 colnames = set(['geoid'])
 
+# Read all the files. Each file has a sequence number and may contain many variables.
 for sequence, variables in variablesBySequence.items():
     # First read estimates
     # TODO hardwired path
@@ -165,6 +167,8 @@ for sequence, variables in variablesBySequence.items():
                 if args.blockgroups and geoid['type'] == 'blockgroup' or args.tracts and geoid['type'] == 'tract':
                     row = rows[geoid['geoid']]
                     row['geoid'] = geoid['geoid']
+
+                    # Determine column names
                     for var in variables:
                         if args.long_titles:
                             if prefix == 'e':
@@ -180,6 +184,7 @@ for sequence, variables in variablesBySequence.items():
                         colnames.add(col)
                         row[col] = line[var.offset]
 
+# Write output file
 with open(args.output, 'w') as out:
     colnames = list(colnames)
     colnames.sort()
