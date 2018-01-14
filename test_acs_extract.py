@@ -7,6 +7,8 @@ import pandas as pd
 import numpy as np
 from tempfile import mkstemp
 
+# Define test cases: a specification for columns, a geography, a ground-truth file, and columns to compare between the
+# output of acs_extractor and the ground truth file.
 testCases = [
     ('B08201_2', 'tracts', 'test_data/ACS_16_5YR_B08201_with_ann.csv', (('B08201_002', 'HD01_VD03'), ('B08201_002_MOE', 'HD02_VD03'))),
     ('B19001_3-6', 'blockgroups', 'test_data/ACS_16_5YR_B19001_with_ann.csv', (
@@ -31,19 +33,18 @@ testCases = [
 
 failCount = 0
 
-# Tracts, single variable selection
-# First, extract the data
 for spec, geography, groundTruthFile, comparisons in testCases:
     fh, output = mkstemp()
+    # Run the ACS Extractor
     call(['python', 'acs_extract.py', '--tracts', argv[1], 'B01003_*', spec, output])
 
-    # Load up the file
+    # Load up the files
     data = pd.read_csv(output)
     groundTruth = pd.read_csv(groundTruthFile)
     data = data.merge(groundTruth, left_on='geoid', right_on='GEO.id2')
 
+    # Logging
     print(f'{spec} ({geography})')
-
     for left, right in comparisons:
         passed = np.all(data[left] == data[right])
         if not passed:
