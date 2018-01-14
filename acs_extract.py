@@ -4,8 +4,8 @@
 # Only tested on 2016 Summary File estimates
 
 from argparse import ArgumentParser
-from os.path import dirname, join
-from sys import argv
+from os.path import dirname, join, basename
+from sys import argv, exit
 from csv import DictReader, reader, DictWriter
 from collections import defaultdict
 import codecs
@@ -16,17 +16,21 @@ parser.add_argument('--index', default=join(dirname(argv[0]), 'lookup_tables', '
 parser.add_argument('--blockgroups', action='store_true', default=False, help='Extract data for Census block groups')
 parser.add_argument('--tracts', action='store_true', default=False, help='Extract data for Census tracts')
 parser.add_argument('--long-titles', action='store_true', default=False, help='Use long titles in CSV output')
+parser.add_argument('--readme', action='store', metavar='README', help='Write readme file with column definitions to this locations')
 parser.add_argument('path', metavar='PATH_TO_ACS_SUMMARY_FILE', help='Path to an unzipped ACS summary file')
 parser.add_argument('vars', metavar='VAR', nargs='+', help='Variables to extract, in format TABLE_VARIABLENUMBER, TABLE_START-END, or TABLE_*')
 parser.add_argument('output', metavar='OUTPUT_CSV', help='Output CSV file')
 args = parser.parse_args()
 
-print(args)
+if args.tracts == args.blockgroups:
+    print('Exactly one of --tracts or --blockgroups must be specified')
+    exit(1)
 
 # Parse the tables/variables wanted
 class Variable(object):
-    def __init__(self, table, number, offset, sequence, name):
+    def __init__(self, table, number, offset, sequence, name, tableName=None):
         self.table = table
+        self.tableName = tableName
         self.number = number
         self.offset = offset
         self.sequence = sequence
@@ -63,6 +67,7 @@ with open(args.index) as index:
 
     tableOffset = 0
     currentTableId = None
+    currentTableName = None
     readAll = False
     # Variables to read, these are 1-based
     toRead = set()
@@ -76,6 +81,7 @@ with open(args.index) as index:
             readAll = False
             toRead = set()
             currentTableId = line['Table ID']
+            currentTableName = line['Table Title']
             tableOffset = int(line['Start Position']) - 1 # Correct for off-by-one
             baseTitle = ''
             # Parse the variable specs
@@ -107,7 +113,7 @@ with open(args.index) as index:
             offset = tableOffset + lineNumber - 1 # convert to 0 based
 
             if readAll or lineNumber in toRead:
-                var = Variable(table=currentTableId, number=lineNumber, sequence=sequenceNumber, offset=offset, name=title)
+                var = Variable(table=currentTableId, tableName=currentTableName, number=lineNumber, sequence=sequenceNumber, offset=offset, name=title)
                 variablesBySequence[sequenceNumber].append(var)
 
 print('Reading the following variables: ')
@@ -115,6 +121,32 @@ varsToRead = [i for seq in variablesBySequence.values() for i in seq]
 varsToRead.sort(key=lambda x: f'{x.table}_{x.number:03d})')
 for var in varsToRead:
     print(f'{var.table}_{var.number:03d}: {var.name}')
+
+
+if args.readme:
+    with open(args.readme, 'w') as readme:
+        print(f'README for {basename(args.output)}', file=readme)
+
+        # Sort by table
+        sortedVars = [i for seq in variablesBySequence.values() for i in seq]
+        sortedVars.sort(key=lambda x: x.table)
+
+        currentTable = None
+        for var in sortedVars:
+            if var.table != currentTable:
+                currentTable = var.table
+                print('', file=readme)
+                header = f'{var.table}: {var.tableName}'
+                print(header, file=readme)
+                # believe it or not, string * int repeats string in times
+                print('=' * len(header), file=readme)
+
+            print(f'{var.table}_{var.number:03d}: {var.name}', file=readme)
+
+        print('', file=readme)
+        print(f'geoid: Census geographic ID for {"tract" if args.tracts else "blockgroup"}', file=readme)
+        print('', file=readme)
+        print('Produced with acs_extractor, https://github.com/mattwigway/acs_extractor', file=readme)
 
 rows = defaultdict(dict) # geoid to row values
 
